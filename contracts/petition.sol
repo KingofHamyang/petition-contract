@@ -18,7 +18,6 @@ contract Petition{
 
   struct JuryPanel {
     address addr;
-    uint256[] blocking_list;
     uint256 dislike;
     uint256 like;
   }
@@ -30,6 +29,7 @@ contract Petition{
   mapping(bytes32=>bool) juryvotecheck;
   mapping(uint256=>Content) petitions;  // 청원 저장
   mapping(address=>JuryPanel) jury_panels;
+  mapping(address=>uint256[]) blocking_list;
   address[] jury_address;
   bool debugmode;
   uint[] return_indexes;
@@ -79,7 +79,6 @@ contract Petition{
     jury_panels[msg.sender].dislike = 1;
     jury_panels[msg.sender].like = 1;
     jury_panels[msg.sender].addr = msg.sender;
-    // jury_panels[msg.sender].blocking_list = [];
     jury_address.push(msg.sender);
     NUM_JURY++;
   }
@@ -87,7 +86,7 @@ contract Petition{
   function blockingContent(uint256 _id, string memory _blocked_reason) public isJuryPanel(msg.sender) {
     petitions[_id].is_block = true;
     petitions[_id].blocked_reason = _blocked_reason;
-    jury_panels[msg.sender].blocking_list.push(_id);
+    blocking_list[msg.sender].push(_id);
   }
 
   function vote(uint256 _id) public voteChecker(_id) {  // 투표하기, did&중복투표 체크함
@@ -151,6 +150,16 @@ contract Petition{
         }
       }
     }
+  }
+
+  function getBlockingListOfJury(address jury) external view returns(uint256[] memory){
+    uint256[] memory temp_blocking_list = new uint256[](blocking_list[jury].length);
+    uint i;
+    for(i=0; i <blocking_list[jury].length ; i++){
+      temp_blocking_list[i] = blocking_list[jury];
+    }
+    return temp_blocking_list;
+
   }
   
   function getJuryList() external view returns(address[] memory, uint[] memory, uint[] memory) {  // 판정단 list 불러오기
