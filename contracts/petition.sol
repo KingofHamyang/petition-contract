@@ -18,6 +18,7 @@ contract Petition{
   }
 
   struct JuryPanel {
+    address addr;
     uint256[] blocking_list;
     uint256 dislike;
     uint256 like;
@@ -33,11 +34,12 @@ contract Petition{
   address[] jury_address;
   bool debugmode;
   uint[] return_indexes;
+  uint256 criteria_vote = 100;
 
-  modifier isJuryPanel() {
+  modifier isJuryPanel(address _addr) {
     // emit Alert(msg.sender, functionname);
-    require(jury_panels[msg.sender].like == 0 && jury_panels[msg.sender].dislike == 0, "msg.sender is not a jury pannel.");
-    require(jury_panels[msg.sender].dislike > 101, "This jury panel has over 100 dislikes.");
+    require(jury_panels[_addr].like > 0, "The address of the arguments is not in jury pannel list.");
+    // require(jury_panels[_addr].dislike < criteria_vote + 1, "This jury panel has over 100 dislikes.");
     _;
   }
 
@@ -50,8 +52,7 @@ contract Petition{
     _;
   }
 
-    modifier juryVoteChecker(address jury) {  // 사용자가 이미 투표를 했는지 확인
-    require(jury_panels[jury].like == 0 && jury_panels[jury].dislike == 0, "The jury does not exist.");
+  modifier juryVoteChecker(address jury){  // 사용자가 이미 투표를 했는지 확인
     bytes32 senderhash = keccak256(toBytes(msg.sender));
     bytes32 juryhash = keccak256(toBytes(jury));
     bytes32 checkhash = keccak256(abi.encodePacked(juryhash ^ senderhash));
@@ -61,33 +62,37 @@ contract Petition{
   }
 
   modifier isOwner() {  // 청원 관리자 확인
-    if(!debugmode){
-      require(msg.sender == owner, "msg.sender is not the owner");
-    }
+    require(msg.sender == owner, "msg.sender is not the owner");
     _;
   }
 
-  constructor() public{
+  constructor(){
     owner = msg.sender;
     debugmode = true;
     NUM_JURY = 0;
     id = 0;
   }
 
-  function applyJury() public{
-    require(NUM_JURY > 100, "No vacancy for jury panel");
+  function applyJury() public {
+    require(msg.sender != owner, "msg.sender is the government account.");
+    require(jury_panels[msg.sender].like == 0, "You are already in jury panel list.");
+    require(NUM_JURY <= 100, "No vacancy for jury panel");
     jury_panels[msg.sender].dislike = 1;
     jury_panels[msg.sender].like = 1;
+    jury_panels[msg.sender].addr = msg.sender;
+    // jury_panels[msg.sender].blocking_list = [];
     jury_address.push(msg.sender);
+    NUM_JURY++;
   }
 
-  function blockingContent(uint256 _id, string memory _blocked_reason) public isJuryPanel() {
+  function blockingContent(uint256 _id, string memory _blocked_reason) public isJuryPanel(msg.sender) {
     petitions[_id].is_block = true;
     petitions[_id].blocked_reason = _blocked_reason;
     jury_panels[msg.sender].blocking_list.push(_id);
   }
 
   function vote(uint256 _id) public voteChecker(_id) {  // 투표하기, did&중복투표 체크함
+    require(!petitions[_id].is_block, "This petition is blocked");
     petitions[_id].vote += 1;
   }
 
@@ -103,37 +108,83 @@ contract Petition{
     id++;
   }
 
-  function debugmodectl(bool mode) public{
-    debugmode = mode;
-  }
-
   function viewContent(uint256 _id) external view returns(Content memory) {  // 청원 내용 불러오기
     require(_id < id, "doesn't exist.");
     return petitions[_id];
   }
 
+  function getLastIndex() external view returns(uint256) {  // 마지막 index 보기
+    require(id > 0, "No petition exists.");
+    return id - 1;
+  }
 
-  function getContentsList(bool _is_all, bool _is_replied, bool _is_public, bool _is_block) external returns(Content[] memory) {  // 청원 list 불러오기
-    // 가져올 인덱스 계산하기
-    if (_is_all){
-      Content[] memory list = new Content[](id);
-      for(uint i = 0; i < id; i++){
-        list[i].title = petitions[i].title;
-        list[i].content = petitions[i].content;
-        list[i].vote = petitions[i].vote;
-        list[i].tags = petitions[i].tags;
-        list[i].start_time = petitions[i].start_time;
-        list[i].reply_url = petitions[i].reply_url;
-        list[i].is_replied = petitions[i].is_replied;
-        list[i].category = petitions[i].category;
-        list[i].is_block = petitions[i].is_block;
-        list[i].blocked_reason = petitions[i].blocked_reason;
-      }
-      return list;
+  function reply(uint256 _id, string memory url) public isOwner()  {  // 청원에 답변한 url 달기
+    petitions[_id].reply_url = url;
+    petitions[_id].is_replied = true;
+  }
+
+  function toBytes(address addr) private pure returns(bytes memory) {  // address type을 bytes type으로 바꾸기 (hashing 용)
+    bytes memory byteaddr = new bytes(20);
+    for (uint8 i = 0; i < 20; i++) {
+      byteaddr[i] = byte(uint8(uint(addr) / (2**(8*(19 - i)))));
     }
-    else{
-      for(uint i = 0; i < id; i++){
-        if (petitions[i].is_replied == _is_replied && (petitions[i].vote > 100) == _is_public && petitions[i].is_block == _is_block)
+    return (byteaddr);
+  }
+
+  function evaluateJury(address jury, bool isLike) public isJuryPanel(jury) juryVoteChecker(jury) {
+    if (isLike) jury_panels[jury].like++;
+    else {
+      jury_panels[jury].dislike++;
+      if (jury_panels[jury].dislike > criteria_vote + 1) {
+        delete jury_panels[jury];
+        NUM_JURY--;
+
+        for (uint i = 0; i < jury_address.length; i++){
+          if (jury_address[i] == jury) {
+            delete jury_address[i];
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+
+  function getJuryList() external view returns(JuryPanel[] memory) {  // 판정단 list 불러오기
+    JuryPanel[] memory list = new JuryPanel[](NUM_JURY);
+    uint i;
+    for(i = 0; i < jury_address.length; i++){
+      if(jury_address[i] != address(0)){
+        list[i].addr = jury_address[i];
+        list[i].dislike = jury_panels[jury_address[i]].dislike - 1;
+        list[i].like = jury_panels[jury_address[i]].like - 1;
+        list[i].blocking_list = jury_panels[jury_address[i]].blocking_list;
+      }
+    }
+    return list;
+  }
+
+  function getAllContents() external view returns(Content[] memory) {  // 청원 list 불러오기
+    // 가져올 인덱스 계산하기
+    Content[] memory list = new Content[](id);
+    for(uint i = 0; i < id; i++){
+      list[i].title = petitions[i].title;
+      list[i].content = petitions[i].content;
+      list[i].vote = petitions[i].vote;
+      list[i].tags = petitions[i].tags;
+      list[i].start_time = petitions[i].start_time;
+      list[i].reply_url = petitions[i].reply_url;
+      list[i].is_replied = petitions[i].is_replied;
+      list[i].category = petitions[i].category;
+      list[i].is_block = petitions[i].is_block;
+      list[i].blocked_reason = petitions[i].blocked_reason;
+    }
+    return list;
+  }
+
+function getBlockContents(bool _is_block) external returns(Content[] memory){
+    for(uint i = 0; i < id; i++){
+        if (petitions[i].is_block == _is_block)
           return_indexes.push(i);
     }
     // 가져올 인덱스에 해당하는 글 array에 추가하기
@@ -154,53 +205,56 @@ contract Petition{
     }
     delete return_indexes;
     return list;
+  }
+
+
+function getPublicContents(bool _is_public) external returns(Content[] memory){
+    for(uint i = 0; i < id; i++){
+        if ((petitions[i].vote > criteria_vote + 1) == _is_public)
+          return_indexes.push(i);
     }
-  }
-
-  function getLastIndex() external view returns(uint256) {  // 마지막 index 보기
-    return id - 1;
-  }
-
-  function reply(uint256 _id, string memory url) public isOwner()  {  // 청원에 답변한 url 달기
-    petitions[_id].reply_url = url;
-    petitions[_id].is_replied = true;
-  }
-
-  function toBytes(address addr) private pure returns(bytes memory) {  // address type을 bytes type으로 바꾸기 (hashing 용)
-    bytes memory byteaddr = new bytes(20);
-    for (uint8 i = 0; i < 20; i++) {
-      byteaddr[i] = byte(uint8(uint(addr) / (2**(8*(19 - i)))));
+    // 가져올 인덱스에 해당하는 글 array에 추가하기
+    uint length = return_indexes.length;
+    Content[] memory list = new Content[](length);
+    for(uint i = 0; i < length; i++){
+      uint _index = return_indexes[i];
+      list[i].title = petitions[_index].title;
+      list[i].content = petitions[_index].content;
+      list[i].vote = petitions[_index].vote;
+      list[i].tags = petitions[_index].tags;
+      list[i].start_time = petitions[_index].start_time;
+      list[i].reply_url = petitions[_index].reply_url;
+      list[i].is_replied = petitions[_index].is_replied;
+      list[i].category = petitions[_index].category;
+      list[i].is_block = petitions[_index].is_block;
+      list[i].blocked_reason = petitions[_index].blocked_reason;
     }
-    return (byteaddr);
+    delete return_indexes;
+    return list;
   }
 
-  function evaluateJury(address jury, bool isLike) public juryVoteChecker(jury) {
-    if (isLike) jury_panels[jury].like++;
-    else {
-      jury_panels[jury].dislike++;
-      if (jury_panels[jury].dislike > 101) {
-        delete jury_panels[jury];
-        NUM_JURY--;
-
-        for (uint i = 0; i < jury_address.length; i++){
-          if (jury_address[i] == jury) {
-            delete jury_address[i];
-            break;
-          }
-        }
-      }
+function getRepliedContents(bool _is_replied) external returns(Content[] memory){
+    for(uint i = 0; i < id; i++){
+        if (petitions[i].is_replied == _is_replied)
+          return_indexes.push(i);
     }
-  }
-
-  function getJuryList() external view returns(JuryPanel[] memory) {  // 판정단 list 불러오기
-    JuryPanel[] memory list = new JuryPanel[](NUM_JURY);
-    for(uint i = 0; i < jury_address.length; i++){
-      if(jury_address[i] != address(0x0)){
-        list[i].dislike = jury_panels[jury_address[i]].dislike - 1;
-        list[i].like = jury_panels[jury_address[i]].like - 1;
-        list[i].blocking_list = jury_panels[jury_address[i]].blocking_list;
-      }
+    // 가져올 인덱스에 해당하는 글 array에 추가하기
+    uint length = return_indexes.length;
+    Content[] memory list = new Content[](length);
+    for(uint i = 0; i < length; i++){
+      uint _index = return_indexes[i];
+      list[i].title = petitions[_index].title;
+      list[i].content = petitions[_index].content;
+      list[i].vote = petitions[_index].vote;
+      list[i].tags = petitions[_index].tags;
+      list[i].start_time = petitions[_index].start_time;
+      list[i].reply_url = petitions[_index].reply_url;
+      list[i].is_replied = petitions[_index].is_replied;
+      list[i].category = petitions[_index].category;
+      list[i].is_block = petitions[_index].is_block;
+      list[i].blocked_reason = petitions[_index].blocked_reason;
     }
+    delete return_indexes;
     return list;
   }
 }
