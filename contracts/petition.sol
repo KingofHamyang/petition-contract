@@ -180,8 +180,9 @@ contract Petition{
     return (address_list, like_list, dislike_list);
   }
 
-  function getAllContents() external view returns(string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory) {  // 청원 list 불러오기
+  function getAllContents() external view returns(uint[] memory, string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory) {  // 청원 list 불러오기
     // 가져올 인덱스 계산하기
+    uint256[] memory index_list = new uint256[](id);
     string[] memory title_list = new string[](id);
     string[] memory content_list = new string[](id);
     uint256[] memory vote_list = new uint256[](id);
@@ -192,6 +193,7 @@ contract Petition{
 
 
     for(uint i = 0; i < id; i++){
+      index_list[i] = i;
       title_list[i] = petitions[i].title;
       content_list[i] = petitions[i].content;
       vote_list[i] = petitions[i].vote;
@@ -203,76 +205,91 @@ contract Petition{
     return (title_list, content_list, vote_list, start_time_list, reply_url_list, category_list,blocked_reason_list);
   }
 
-function getBlockContents(bool _is_block) external returns(Content[] memory){
+function getBlockContents(bool _is_block) external returns(uint[] memory, string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory){
     for(uint i = 0; i < id; i++){
         if (petitions[i].is_block == _is_block)
           return_indexes.push(i);
     }
+    uint256[] memory index_list = new uint256[](id);
+    string[] memory title_list = new string[](id);
+    string[] memory content_list = new string[](id);
+    uint256[] memory vote_list = new uint256[](id);
+    uint256[] memory start_time_list = new uint256[](id);
+    string[] memory reply_url_list = new string[](id);
+    string[] memory category_list = new string[](id);
+    string[] memory blocked_reason_list = new string[](id);
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
-    Content[] memory list = new Content[](length);
     for(uint i = 0; i < length; i++){
-      uint _index = return_indexes[i];
-      list[i].title = petitions[_index].title;
-      list[i].content = petitions[_index].content;
-      list[i].vote = petitions[_index].vote;
-      list[i].start_time = petitions[_index].start_time;
-      list[i].reply_url = petitions[_index].reply_url;
-      list[i].is_replied = petitions[_index].is_replied;
-      list[i].category = petitions[_index].category;
-      list[i].is_block = petitions[_index].is_block;
-      list[i].blocked_reason = petitions[_index].blocked_reason;
+      index_list[i] = return_indexes[i];
+      title_list[i] = petitions[return_indexes[i]].title;
+      content_list[i] = petitions[return_indexes[i]].content;
+      vote_list[i] = petitions[return_indexes[i]].vote;
+      start_time_list[i] = petitions[return_indexes[i]].start_time;
+      category_list[i] = petitions[return_indexes[i]].category;
+      reply_url_list[i] = petitions[return_indexes[i]].reply_url;
+      blocked_reason_list[i] = petitions[return_indexes[i]].blocked_reason;
     }
     delete return_indexes;
-    return list;
+    return (index_list, title_list, content_list, vote_list, start_time_list, reply_url_list, category_list,blocked_reason_list);
   }
 
 
-function getPublicContents(bool _is_public) external returns(Content[] memory){
+function getPublicContents(bool _is_public) external returns(uint[] memory, string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory){
     for(uint i = 0; i < id; i++){
         if ((petitions[i].vote > criteria_vote + 1) == _is_public)
           return_indexes.push(i);
     }
+    uint256[] memory index_list = new uint256[](id);
+    string[] memory title_list = new string[](id);
+    string[] memory content_list = new string[](id);
+    uint256[] memory vote_list = new uint256[](id);
+    uint256[] memory start_time_list = new uint256[](id);
+    string[] memory reply_url_list = new string[](id);
+    string[] memory category_list = new string[](id);
+    string[] memory blocked_reason_list = new string[](id);
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
-    Content[] memory list = new Content[](length);
     for(uint i = 0; i < length; i++){
-      uint _index = return_indexes[i];
-      list[i].title = petitions[_index].title;
-      list[i].content = petitions[_index].content;
-      list[i].vote = petitions[_index].vote;
-      list[i].start_time = petitions[_index].start_time;
-      list[i].reply_url = petitions[_index].reply_url;
-      list[i].is_replied = petitions[_index].is_replied;
-      list[i].category = petitions[_index].category;
-      list[i].is_block = petitions[_index].is_block;
-      list[i].blocked_reason = petitions[_index].blocked_reason;
+      index_list[i] = return_indexes[i];
+      title_list[i] = petitions[return_indexes[i]].title;
+      content_list[i] = petitions[return_indexes[i]].content;
+      vote_list[i] = petitions[return_indexes[i]].vote;
+      start_time_list[i] = petitions[return_indexes[i]].start_time;
+      category_list[i] = petitions[return_indexes[i]].category;
+      reply_url_list[i] = petitions[return_indexes[i]].reply_url;
+      blocked_reason_list[i] = petitions[return_indexes[i]].blocked_reason;
     }
     delete return_indexes;
-    return list;
+    return (title_list, content_list, vote_list, start_time_list, reply_url_list, category_list,blocked_reason_list);
   }
 
-function getRepliedContents(bool _is_replied) external returns(Content[] memory){
+function getRepliedContents(bool _is_replied) external returns(uint[] memory, string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory){
     for(uint i = 0; i < id; i++){
         if (petitions[i].is_replied == _is_replied)
           return_indexes.push(i);
     }
+    uint256[] memory index_list = new uint256[](id);
+    string[] memory title_list = new string[](id);
+    string[] memory content_list = new string[](id);
+    uint256[] memory vote_list = new uint256[](id);
+    uint256[] memory start_time_list = new uint256[](id);
+    string[] memory reply_url_list = new string[](id);
+    string[] memory category_list = new string[](id);
+    string[] memory blocked_reason_list = new string[](id);
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
-    Content[] memory list = new Content[](length);
     for(uint i = 0; i < length; i++){
-      uint _index = return_indexes[i];
-      list[i].title = petitions[_index].title;
-      list[i].content = petitions[_index].content;
-      list[i].vote = petitions[_index].vote;
-      list[i].start_time = petitions[_index].start_time;
-      list[i].reply_url = petitions[_index].reply_url;
-      list[i].is_replied = petitions[_index].is_replied;
-      list[i].category = petitions[_index].category;
-      list[i].is_block = petitions[_index].is_block;
-      list[i].blocked_reason = petitions[_index].blocked_reason;
+      index_list[i] = return_indexes[i];
+      title_list[i] = petitions[return_indexes[i]].title;
+      content_list[i] = petitions[return_indexes[i]].content;
+      vote_list[i] = petitions[return_indexes[i]].vote;
+      start_time_list[i] = petitions[return_indexes[i]].start_time;
+      category_list[i] = petitions[return_indexes[i]].category;
+      reply_url_list[i] = petitions[return_indexes[i]].reply_url;
+      blocked_reason_list[i] = petitions[return_indexes[i]].blocked_reason;
     }
     delete return_indexes;
-    return list;
+    return (title_list, content_list, vote_list, start_time_list, reply_url_list, category_list,blocked_reason_list);
   }
 }
