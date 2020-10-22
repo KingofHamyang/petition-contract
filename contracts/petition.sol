@@ -7,7 +7,6 @@ contract Petition{
   struct Content {
     string title;
     string content;
-    string[] tags;
     uint256 vote;
     uint256 start_time;
     string reply_url;
@@ -66,7 +65,7 @@ contract Petition{
     _;
   }
 
-  constructor(){
+  constructor() public {
     owner = msg.sender;
     debugmode = true;
     NUM_JURY = 0;
@@ -96,21 +95,26 @@ contract Petition{
     petitions[_id].vote += 1;
   }
 
-  function write(string memory title, string memory content, string[] memory tags) public {  // 청원 작성
+  function write(string memory title, string memory content) public {  // 청원 작성
     petitions[id].title = title;
     petitions[id].content = content;
-    for (uint i = 0; i < tags.length; i++){
-      petitions[id].tags.push(tags[i]);
-    }
+
     petitions[id].vote = 0;
     petitions[id].start_time = block.timestamp;
     petitions[id].is_replied = false;
     id++;
   }
 
-  function viewContent(uint256 _id) external view returns(Content memory) {  // 청원 내용 불러오기
+  function viewContent(uint256 _id) external view returns(string memory, string memory, uint256, uint256, string memory, string memory, string memory) {  // 청원 내용 불러오기
     require(_id < id, "doesn't exist.");
-    return petitions[_id];
+    return  ( petitions[_id].title,
+              petitions[_id].content,
+              petitions[_id].vote,
+              petitions[_id].start_time,
+              petitions[_id].reply_url,
+              petitions[_id].category,
+              petitions[_id].blocked_reason
+            );
   }
 
   function getLastIndex() external view returns(uint256) {  // 마지막 index 보기
@@ -149,37 +153,45 @@ contract Petition{
     }
   }
   
+  function getJuryList() external view returns(address[] memory, uint[] memory, uint[] memory) {  // 판정단 list 불러오기
+    address[] memory address_list = new address[](NUM_JURY);
+    uint256[] memory like_list = new uint256[](NUM_JURY);
+    uint256[] memory dislike_list = new uint256[](NUM_JURY);
 
-  function getJuryList() external view returns(JuryPanel[] memory) {  // 판정단 list 불러오기
-    JuryPanel[] memory list = new JuryPanel[](NUM_JURY);
     uint i;
+    uint index = 0;
     for(i = 0; i < jury_address.length; i++){
       if(jury_address[i] != address(0)){
-        list[i].addr = jury_address[i];
-        list[i].dislike = jury_panels[jury_address[i]].dislike - 1;
-        list[i].like = jury_panels[jury_address[i]].like - 1;
-        list[i].blocking_list = jury_panels[jury_address[i]].blocking_list;
+        address_list[index] = jury_address[i];
+        dislike_list[index] = jury_panels[jury_address[i]].dislike - 1;
+        like_list[index] = jury_panels[jury_address[i]].like - 1;
+        index++;
       }
     }
-    return list;
+    return (address_list, like_list, dislike_list);
   }
 
-  function getAllContents() external view returns(Content[] memory) {  // 청원 list 불러오기
+  function getAllContents() external view returns(string[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory, string[] memory) {  // 청원 list 불러오기
     // 가져올 인덱스 계산하기
-    Content[] memory list = new Content[](id);
+    string[] memory title_list = new string[](id);
+    string[] memory content_list = new string[](id);
+    uint256[] memory vote_list = new uint256[](id);
+    uint256[] memory start_time_list = new uint256[](id);
+    string[] memory reply_url_list = new string[](id);
+    string[] memory category_list = new string[](id);
+    string[] memory blocked_reason_list = new string[](id);
+
+
     for(uint i = 0; i < id; i++){
-      list[i].title = petitions[i].title;
-      list[i].content = petitions[i].content;
-      list[i].vote = petitions[i].vote;
-      list[i].tags = petitions[i].tags;
-      list[i].start_time = petitions[i].start_time;
-      list[i].reply_url = petitions[i].reply_url;
-      list[i].is_replied = petitions[i].is_replied;
-      list[i].category = petitions[i].category;
-      list[i].is_block = petitions[i].is_block;
-      list[i].blocked_reason = petitions[i].blocked_reason;
+      title_list[i] = petitions[i].title;
+      content_list[i] = petitions[i].content;
+      vote_list[i] = petitions[i].vote;
+      start_time_list[i] = petitions[i].start_time;
+      category_list[i] = petitions[i].category;
+      reply_url_list[i] = petitions[i].reply_url;
+      blocked_reason_list[i] = petitions[i].blocked_reason;
     }
-    return list;
+    return (title_list, content_list, vote_list, start_time_list, reply_url_list, category_list,blocked_reason_list);
   }
 
 function getBlockContents(bool _is_block) external returns(Content[] memory){
@@ -190,12 +202,11 @@ function getBlockContents(bool _is_block) external returns(Content[] memory){
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(i = 0; i < length; i++){
+    for(uint i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
       list[i].vote = petitions[_index].vote;
-      list[i].tags = petitions[_index].tags;
       list[i].start_time = petitions[_index].start_time;
       list[i].reply_url = petitions[_index].reply_url;
       list[i].is_replied = petitions[_index].is_replied;
@@ -216,12 +227,11 @@ function getPublicContents(bool _is_public) external returns(Content[] memory){
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(i = 0; i < length; i++){
+    for(uint i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
       list[i].vote = petitions[_index].vote;
-      list[i].tags = petitions[_index].tags;
       list[i].start_time = petitions[_index].start_time;
       list[i].reply_url = petitions[_index].reply_url;
       list[i].is_replied = petitions[_index].is_replied;
@@ -241,12 +251,11 @@ function getRepliedContents(bool _is_replied) external returns(Content[] memory)
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(i = 0; i < length; i++){
+    for(uint i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
       list[i].vote = petitions[_index].vote;
-      list[i].tags = petitions[_index].tags;
       list[i].start_time = petitions[_index].start_time;
       list[i].reply_url = petitions[_index].reply_url;
       list[i].is_replied = petitions[_index].is_replied;
