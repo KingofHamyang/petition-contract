@@ -1,4 +1,4 @@
-pragma solidity >=0.5.17 <=0.7.4;
+pragma solidity >=0.1.1 <=0.5.0;
 pragma experimental ABIEncoderV2;
 
 // Caller
@@ -190,7 +190,7 @@ function getBlockContents(bool _is_block) external returns(Content[] memory){
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(uint i = 0; i < length; i++){
+    for(i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
@@ -216,7 +216,7 @@ function getPublicContents(bool _is_public) external returns(Content[] memory){
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(uint i = 0; i < length; i++){
+    for(i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
@@ -241,7 +241,7 @@ function getRepliedContents(bool _is_replied) external returns(Content[] memory)
     // 가져올 인덱스에 해당하는 글 array에 추가하기
     uint length = return_indexes.length;
     Content[] memory list = new Content[](length);
-    for(uint i = 0; i < length; i++){
+    for(i = 0; i < length; i++){
       uint _index = return_indexes[i];
       list[i].title = petitions[_index].title;
       list[i].content = petitions[_index].content;
