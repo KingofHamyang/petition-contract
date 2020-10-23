@@ -25,8 +25,9 @@ contract Petition{
   address owner;  // 청원 관리자
   uint256 id;  // 청원 index
   uint256 NUM_JURY;
-  mapping(bytes32=>bool) votecheck;  // 해당 청원에 vote 했는지 여부 저장
-  mapping(bytes32=>bool) juryvotecheck;
+// 해당 청원에 vote 했는지 여부 저장
+  mapping(address => mapping(uint256 => bool)) votecheck;
+  mapping(address => mapping(address => bool)) juryvotecheck;
   mapping(uint256=>Content) petitions;  // 청원 저장
   mapping(address=>JuryPanel) jury_panels;
   mapping(address=>uint256[]) blocking_list;
@@ -43,20 +44,15 @@ contract Petition{
   }
 
   modifier voteChecker(uint256 _id) {  // 사용자가 이미 투표를 했는지 확인
-    bytes32 addrhash = keccak256(toBytes(msg.sender));
-    bytes32 idhash = keccak256(abi.encodePacked(_id));
-    bytes32 checkhash = keccak256(abi.encodePacked(addrhash ^ idhash));
-    require(!votecheck[checkhash], "This petition is already voted by msg.sender");
-    votecheck[checkhash] = true;
+    require(!votecheck[msg.sender][_id], "This petition is already voted by msg.sender");
+    votecheck[msg.sender][_id] = true;
     _;
   }
 
   modifier juryVoteChecker(address jury){  // 사용자가 이미 투표를 했는지 확인
-    bytes32 senderhash = keccak256(toBytes(msg.sender));
-    bytes32 juryhash = keccak256(toBytes(jury));
-    bytes32 checkhash = keccak256(abi.encodePacked(juryhash ^ senderhash));
-    require(!juryvotecheck[checkhash], "This jury is already evaluated by msg.sender");
-    juryvotecheck[checkhash] = true;
+
+    require(!juryvotecheck[msg.sender][jury], "This jury is already evaluated by msg.sender");
+    juryvotecheck[msg.sender][jury] = true;
     _;
   }
 
@@ -239,7 +235,7 @@ contract Petition{
 
     uint index = 0;
     for(uint i = 0; i < id; i++){
-      if(petitions[i].vote > 100) {
+      if(petitions[i].vote > 100 && _is_public || !_is_public && petitions[i].vote < 100) {
         index_list[index] = i;
         title_list[index] = petitions[i].title;
         vote_list[index] = petitions[i].vote;
@@ -252,7 +248,7 @@ contract Petition{
     return (index_list, title_list, vote_list, start_time_list, category_list,blocked_reason_list);
   }
 
-function getRepliedContents(bool _is_replied) view external returns(uint[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory){
+  function getRepliedContents(bool _is_replied) view external returns(uint[] memory, string[] memory, uint256[] memory, uint256[] memory, string[] memory, string[] memory){
     uint[] memory index_list = new uint256[](id);
     string[] memory title_list = new string[](id);
     uint256[] memory vote_list = new uint256[](id);
